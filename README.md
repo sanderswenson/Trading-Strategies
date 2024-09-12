@@ -56,7 +56,3 @@ Executes buy and sell orders based on analysis results and account status.
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License.

@@ -21,7 +21,7 @@ def main():
         trading_module.execute_trade(signal, price)
         
         # Print every 100th iteration to reduce output
-        if i % 100 == 0:
+        if i % 10 == 0:
             print(f"Date: {date}, Signal: {signal}, Price: {price:.2f}, "
                   f"Cash: {account.cash_balance:.2f}, Assets: {account.owned_assets}, "
                   f"Total Value: {account.get_total_value(price):.2f}")

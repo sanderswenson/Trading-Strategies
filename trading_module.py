@@ -1,5 +1,5 @@
 class TradingModule:
-    def __init__(self, account, risk_percentage=0.02):
+    def __init__(self, account, risk_percentage=1):
         self.account = account
         self.risk_percentage = risk_percentage
 
@@ -14,3 +14,4 @@ class TradingModule:
             if quantity > 0:
                 self.account.sell(quantity, price)
                 print(f"Sold {quantity} units at {price}")
+

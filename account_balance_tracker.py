@@ -5,7 +5,7 @@ class AccountBalanceTracker:
         self.asset_price = 0
 
     def buy(self, quantity, price):
-        cost = quantity * price
+        cost = quantity * price * 0.98
         if cost <= self.cash_balance:
             self.cash_balance -= cost
             self.owned_assets += quantity
@@ -15,7 +15,7 @@ class AccountBalanceTracker:
 
     def sell(self, quantity, price):
         if quantity <= self.owned_assets:
-            self.cash_balance += quantity * price
+            self.cash_balance += quantity * price * 0.98
             self.owned_assets -= quantity
             if self.owned_assets == 0:
                 self.asset_price = 0
