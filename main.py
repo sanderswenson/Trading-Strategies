@@ -1,65 +1,42 @@
-from data_loader import DataLoader
-from analysis_framework import SMA_Momentum
-from account_balance_tracker import AccountBalanceTracker
-from trading_module import TradingModule
-import os
-import csv
+import sys
+from pathlib import Path
+import pandas as pd
+
+# Add the project root directory to the Python path
+project_root = Path(__file__).resolve().parent
+sys.path.append(str(project_root))
+
+from data.data_handler import DataHandler
+from strategies.strategy_base import MovingAverageCrossover
+from simulation.simulator import Simulator
+from utils.performance_evaluator import PerformanceEvaluator
 
 def main():
-    # Load data
-    data = DataLoader.load_csv('BCHAIN-MKPRU.csv')
-    print(f"Loaded {len(data)} data points")
+    data_handler = DataHandler()
+    assets = ['BCHAIN-MKPRU.csv', 'LBMA-GOLD.csv']
+    data_dict = {asset: data_handler.load_csv(asset) for asset in assets}
+    commission_fees = {'BTC': 0.02, 'GOLD': 0.01}
 
-    # Initialize account and trading module
-    account = AccountBalanceTracker(initial_balance=1000)
-    trading_module = TradingModule(account)
+    # Initialize strategies for each asset
+    strategies = {
+        'BTC': MovingAverageCrossover(short_window=10, long_window=30),
+        'GOLD': MovingAverageCrossover(short_window=10, long_window=30)
+    }
 
-    # Generate signals
-    signals = SMA_Momentum.generate_signals(data)
-    print(f"Generated {len(signals)} signals")
+    # Generate signals for each asset
+    signals_dict = {
+        asset_key: strategy.generate_signals(data)
+        for asset_key, (data, strategy) in zip(data_dict.keys(), zip(data_dict.values(), strategies.values()))
+    }
 
-    # Prompt for a name
-    output_name = input("Enter a name for the output (leave blank for console output): ").strip()
+    # Initialize simulator with commission fees as percentages for each asset
+    commission_fees = {'BTC': 0.02, 'GOLD': 0.01}  # 2% for BTC, 1% for GOLD
+    simulator = Simulator(data_handler, strategies, initial_capital=1000, commission_fees=commission_fees)
+    trade_history, portfolio_value = simulator.simulate_trades(data_dict, signals_dict)
 
-    # Simulate trading
-    results = []
-    for i, (signal, date, price) in enumerate(signals):
-        trading_module.execute_trade('BTC', signal, price)
-        
-        result = {
-            "Date": date,
-            "Signal": signal,
-            "Price": price,
-            "Cash": account.cash_balance,
-            "BTC": account.btc_owned,
-            "Total Value": account.get_total_value(price, 0)
-        }
-        results.append(result)
-        
-        # Print every 10th iteration to reduce output (only if output_name is blank)
-        if not output_name and i % 10 == 0:
-            print(f"Date: {date}, Signal: {signal}, Price: {price:.2f}, "
-                  f"Cash: {account.cash_balance:.2f}, BTC: {account.btc_owned}, "
-                  f"Total Value: {account.get_total_value(price, 0):.2f}")
-
-    # Output results
-    if output_name:
-        # Generate CSV in /Tests/ directory
-        os.makedirs("Tests", exist_ok=True)
-        csv_path = os.path.join("Tests", f"{output_name}.csv")
-        with open(csv_path, 'w', newline='') as csvfile:
-            fieldnames = ["Date", "Signal", "Price", "Cash", "BTC", "Total Value"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-            for row in results:
-                writer.writerow(row)
-        print(f"Results saved to {csv_path}")
-    else:
-        # Print final results to console
-        print("\nFinal Results:")
-        print(f"Cash: {account.cash_balance:.2f}")
-        print(f"BTC owned: {account.btc_owned}")
-        print(f"Total Value: {account.get_total_value(price, 0):.2f}")
+    # 3. Run backtest
+    # 4. Evaluate performance
+    # 5. Display results
 
 if __name__ == "__main__":
     main()

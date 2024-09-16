@@ -1,0 +1,19 @@
+data_source:
+  type: "csv"
+  path: {"BCHAIN-MKPRU.csv", "LBMA-GOLD.csv"}
+
+strategy:
+  name: "MovingAverageCrossover"
+  params:
+    short_window: 10
+    long_window: 30
+
+simulation:
+  initial_capital: 1000
+  start_date: "2020-01-01"
+  end_date: "2021-12-31"
+
+assets:
+  - "BTC"
+  - "GOLD"
+  - "USD"
