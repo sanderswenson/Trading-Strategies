@@ -17,18 +17,27 @@ class Simulator:
         trade_history = []
         portfolio_value = []
 
-        # Combine all dates from all signals
+        # Combine all dates from data and signals
         all_dates = sorted(set(
+            date for data in data_dict.values() for date in data.index
+        ).union(
             date for signals in signals_dict.values() for date in signals.index
         ))
 
+        # Initialize current prices dict with None
+        last_valid_prices = {asset: None for asset in data_dict.keys()}
+
         for date in all_dates:
             daily_values = {'date': date}
-            # Update current prices
-            current_prices = {
-                asset: data.loc[date]['price'] if date in data.index else None
-                for asset, data in data_dict.items()
-            }
+            # Update current prices, using the last valid price if current is missing
+            current_prices = {}
+            for asset, data in data_dict.items():
+                if date in data.index and pd.notna(data.loc[date]['price']):
+                    current_price = data.loc[date]['price']
+                    last_valid_prices[asset] = current_price  # Update last valid price
+                else:
+                    current_price = last_valid_prices[asset]  # Use last valid price
+                current_prices[asset] = current_price
 
             # Process signals for each asset
             for asset, signals in signals_dict.items():
@@ -36,7 +45,7 @@ class Simulator:
                     position = signals.loc[date]['position']
                     current_price = current_prices.get(asset)
 
-                    if pd.notna(current_price):
+                    if pd.notna(current_price):  # Check if there's a valid price
                         if position == 1:  # Buy signal
                             self.execute_trade(
                                 portfolio, asset, current_price, 'buy', date, trade_history
@@ -48,7 +57,7 @@ class Simulator:
 
             # Calculate total portfolio value
             total_asset_value = sum(
-                portfolio['holdings'][asset] * current_prices.get(asset, 0)
+                portfolio['holdings'][asset] * (current_prices.get(asset) or 0)
                 for asset in portfolio['holdings']
             )
             total_value = portfolio['cash'] + total_asset_value

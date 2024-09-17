@@ -1,4 +1,5 @@
 import csv
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
@@ -15,18 +16,17 @@ class DataHandler:
         filepath = self.data_dir / filename
         asset_name = filename.split('.')[0]  # Assume filename is "ASSET.csv"
         
-        asset_data = []
-        with open(filepath, 'r') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                asset_data.append({
-                    'asset': asset_name,
-                    'date': datetime.strptime(row['Date'], '%m/%d/%y'),
-                    'price': float(row['Value'] or 'nan')
-                })
-        
-        self.data[asset_name] = sorted(asset_data, key=lambda x: x['date'])
-        return self.data[asset_name]
+        df = pd.read_csv(
+            filepath,
+            parse_dates=['Date'],
+            date_parser=lambda x: datetime.strptime(x, '%m/%d/%y')
+        )
+        df.rename(columns={'Date': 'date', 'Value': 'price'}, inplace=True)
+        df['asset'] = asset_name
+        df.set_index('date', inplace=True)
+        df.sort_index(inplace=True)
+        self.data[asset_name] = df
+        return df
 
     def get_data(self, asset, start_date=None, end_date=None):
         if asset not in self.data:

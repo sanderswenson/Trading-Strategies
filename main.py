@@ -13,30 +13,47 @@ from utils.performance_evaluator import PerformanceEvaluator
 
 def main():
     data_handler = DataHandler()
-    assets = ['BCHAIN-MKPRU.csv', 'LBMA-GOLD.csv']
-    data_dict = {asset: data_handler.load_csv(asset) for asset in assets}
+    asset_files = ['BCHAIN-MKPRU.csv', 'LBMA-GOLD.csv']
+    asset_names = ['BTC', 'GOLD']
+    data_dict = {
+        name: data_handler.load_csv(filename)
+        for name, filename in zip(asset_names, asset_files)
+    }
     commission_fees = {'BTC': 0.02, 'GOLD': 0.01}
 
-    # Initialize strategies for each asset
+    # Initialize strategies
     strategies = {
         'BTC': MovingAverageCrossover(short_window=10, long_window=30),
         'GOLD': MovingAverageCrossover(short_window=10, long_window=30)
     }
 
-    # Generate signals for each asset
+    # Generate signals
     signals_dict = {
-        asset_key: strategy.generate_signals(data)
-        for asset_key, (data, strategy) in zip(data_dict.keys(), zip(data_dict.values(), strategies.values()))
+        name: strategies[name].generate_signals(data)
+        for name, data in data_dict.items()
     }
 
-    # Initialize simulator with commission fees as percentages for each asset
+    # Initialize simulator
     commission_fees = {'BTC': 0.02, 'GOLD': 0.01}  # 2% for BTC, 1% for GOLD
-    simulator = Simulator(data_handler, strategies, initial_capital=1000, commission_fees=commission_fees)
+    simulator = Simulator(
+        data_handler, strategies,
+        initial_capital=1000, commission_fees=commission_fees
+    )
     trade_history, portfolio_value = simulator.simulate_trades(data_dict, signals_dict)
-
-    # 3. Run backtest
-    # 4. Evaluate performance
-    # 5. Display results
+    
+    # Print a few trade signals for each asset
+    """ for asset, signals in signals_dict.items():
+        print(f"\nTrade signals for {asset}:")
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', None)
+        print(signals[['price', 'signal', 'position']].head(100))
+        pd.reset_option('display.max_rows')
+        pd.reset_option('display.max_columns')
+        pd.reset_option('display.width')
+    # Print portfolio value
+    print("\nFinal portfolio value:")
+    print(portfolio_value[-1]) """
 
 if __name__ == "__main__":
     main()
