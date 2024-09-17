@@ -1,116 +1,110 @@
 import pandas as pd
+import logging
+
+# Set up logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Simulator:
     def __init__(self, data_handler, strategies, initial_capital=1000, commission_fees=None):
         self.data_handler = data_handler
-        self.strategies = strategies  # Dictionary of strategies for each asset
+        self.strategies = strategies
         self.initial_capital = initial_capital
-        # Commission fees per asset as a percentage (e.g., {'BTC': 0.02, 'GOLD': 0.01})
-        self.commission_fees = commission_fees or {}
+        self.commission_fees = commission_fees if commission_fees else {}
+        self.positions = {asset: 0 for asset in strategies.keys()}
+        self.trade_history = []
 
     def simulate_trades(self, data_dict, signals_dict):
-        # Initialize portfolio with cash and empty holdings
-        portfolio = {
-            'cash': self.initial_capital,
-            'holdings': {asset: 0 for asset in data_dict.keys()}
-        }
-        trade_history = []
-        portfolio_value = []
+        # Initialize portfolio value history
+        portfolio_values = []
 
-        # Combine all dates from data and signals
-        all_dates = sorted(set(
-            date for data in data_dict.values() for date in data.index
-        ).union(
-            date for signals in signals_dict.values() for date in signals.index
-        ))
-
-        # Initialize current prices dict with None
-        last_valid_prices = {asset: None for asset in data_dict.keys()}
+        # Corrected: Combine all dates from signals
+        all_dates = sorted(set().union(*[signals.index for signals in signals_dict.values()]))
 
         for date in all_dates:
-            daily_values = {'date': date}
-            # Update current prices, using the last valid price if current is missing
-            current_prices = {}
-            for asset, data in data_dict.items():
-                if date in data.index and pd.notna(data.loc[date]['price']):
-                    current_price = data.loc[date]['price']
-                    last_valid_prices[asset] = current_price  # Update last valid price
-                else:
-                    current_price = last_valid_prices[asset]  # Use last valid price
-                current_prices[asset] = current_price
-
-            # Process signals for each asset
             for asset, signals in signals_dict.items():
                 if date in signals.index:
-                    position = signals.loc[date]['position']
-                    current_price = current_prices.get(asset)
+                    signal_row = signals.loc[date]
+                    position_change = signal_row['position']
+                    price = signal_row['price']
+                    fee_rate = self.commission_fees.get(asset, 0)
 
-                    if pd.notna(current_price):  # Check if there's a valid price
-                        if position == 1:  # Buy signal
-                            self.execute_trade(
-                                portfolio, asset, current_price, 'buy', date, trade_history
-                            )
-                        elif position == -1:  # Sell signal
-                            self.execute_trade(
-                                portfolio, asset, current_price, 'sell', date, trade_history
-                            )
+                    # Log the signal and position change
+                    logging.debug(f"Asset: {asset} | Signal: {signal_row['signal']} | Position Change: {position_change} | Price: {price}")
 
-            # Calculate total portfolio value
+                    # Buy
+                    if position_change > 0:
+                        # Calculate total cost including commission
+                        trade_cost = position_change * price * (1 + fee_rate)
+                        logging.debug(f"Attempting to buy {position_change} units of {asset} at {price} per unit with {fee_rate*100}% fee. Total cost: {trade_cost}")
+
+                        if self.initial_capital >= trade_cost:
+                            # Update positions and capital
+                            self.positions[asset] += position_change
+                            self.initial_capital -= trade_cost
+
+                            # Log the trade execution
+                            trade = {
+                                'date': date,
+                                'asset': asset,
+                                'position_change': position_change,
+                                'price': price,
+                                'trade_amount': trade_cost,
+                                'fee': trade_cost - (position_change * price),
+                                'capital': self.initial_capital,
+                                'positions': self.positions.copy()
+                            }
+                            logging.info(f"Executed buy trade: {trade}")
+                            self.trade_history.append(trade)
+                        else:
+                            logging.warning(f"Not enough capital to buy {position_change} units of {asset} on {date.date()}. Needed: {trade_cost}, Available: {self.initial_capital}")
+
+                    # Sell
+                    elif position_change < 0:
+                        sell_units = -position_change
+                        if self.positions[asset] >= sell_units:
+                            # Calculate net revenue after commission
+                            gross_revenue = sell_units * price
+                            fee = gross_revenue * fee_rate
+                            net_revenue = gross_revenue - fee
+
+                            # Update positions and capital
+                            self.positions[asset] -= sell_units
+                            self.initial_capital += net_revenue
+
+                            # Log the trade execution
+                            trade = {
+                                'date': date,
+                                'asset': asset,
+                                'position_change': -sell_units,
+                                'price': price,
+                                'trade_amount': net_revenue,
+                                'fee': fee,
+                                'capital': self.initial_capital,
+                                'positions': self.positions.copy()
+                            }
+                            logging.info(f"Executed sell trade: {trade}")
+                            self.trade_history.append(trade)
+                        else:
+                            logging.warning(f"Not enough {asset} to sell {sell_units} units on {date.date()}. Current position: {self.positions[asset]}")
+
+                    else:
+                        # No trade
+                        logging.debug(f"No position change for {asset} on {date.date()}")
+                else:
+                    logging.debug(f"No signal for {asset} on {date.date()}")
+
+            # Calculate total portfolio value for the day
             total_asset_value = sum(
-                portfolio['holdings'][asset] * (current_prices.get(asset) or 0)
-                for asset in portfolio['holdings']
+                self.positions[asset] * data_dict[asset].loc[date, 'price']
+                if date in data_dict[asset].index else 0
+                for asset in self.positions
             )
-            total_value = portfolio['cash'] + total_asset_value
-            daily_values['value'] = total_value
-            portfolio_value.append(daily_values)
+            portfolio_value = self.initial_capital + total_asset_value
+            portfolio_values.append({'date': date, 'portfolio_value': portfolio_value})
 
-        return trade_history, portfolio_value
+            logging.debug(f"Total portfolio value on {date.date()}: {portfolio_value}")
 
-    def execute_trade(self, portfolio, asset, price, action, date, trade_history):
-        commission_rate = self.commission_fees.get(asset, 0)
-        allocation = self.get_asset_allocation(asset)
+        # Convert portfolio values to DataFrame
+        portfolio_values_df = pd.DataFrame(portfolio_values).set_index('date')
 
-        if action == 'buy':
-            invest_amount = portfolio['cash'] * allocation
-            # Adjust the price to include commission
-            adjusted_price = price * (1 + commission_rate)
-            shares_to_buy = invest_amount // adjusted_price
-            total_cost = shares_to_buy * adjusted_price
-            if shares_to_buy > 0 and total_cost <= portfolio['cash']:
-                portfolio['cash'] -= total_cost
-                portfolio['holdings'][asset] += shares_to_buy
-                trade_history.append({
-                    'date': date,
-                    'asset': asset,
-                    'action': 'buy',
-                    'price': price,
-                    'shares': shares_to_buy,
-                    'cost': total_cost,
-                    'commission': total_cost - (shares_to_buy * price)
-                })
-        elif action == 'sell':
-            shares_to_sell = portfolio['holdings'][asset]
-            if shares_to_sell > 0:
-                # Adjust the price to include commission
-                adjusted_price = price * (1 - commission_rate)
-                revenue = shares_to_sell * adjusted_price
-                portfolio['cash'] += revenue
-                portfolio['holdings'][asset] = 0
-                trade_history.append({
-                    'date': date,
-                    'asset': asset,
-                    'action': 'sell',
-                    'price': price,
-                    'shares': shares_to_sell,
-                    'revenue': revenue,
-                    'commission': (shares_to_sell * price) - revenue
-                })
-
-    def get_asset_allocation(self, asset):
-        # Define target allocation for each asset
-        target_allocations = {
-            'BTC': 0.5,   # 50% allocation
-            'GOLD': 0.5   # 50% allocation
-            # Add more assets and their target allocations as needed
-        }
-        return target_allocations.get(asset, 0)
+        return self.trade_history, portfolio_values_df

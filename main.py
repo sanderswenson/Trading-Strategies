@@ -42,18 +42,18 @@ def main():
     trade_history, portfolio_value = simulator.simulate_trades(data_dict, signals_dict)
     
     # Print a few trade signals for each asset
-    """ for asset, signals in signals_dict.items():
+    for asset, signals in signals_dict.items():
         print(f"\nTrade signals for {asset}:")
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', None)
-        print(signals[['price', 'signal', 'position']].head(100))
+        print(signals[['price', 'signal', 'position']].head(30))
         pd.reset_option('display.max_rows')
         pd.reset_option('display.max_columns')
         pd.reset_option('display.width')
     # Print portfolio value
     print("\nFinal portfolio value:")
-    print(portfolio_value[-1]) """
+    print(portfolio_value)
 
 if __name__ == "__main__":
     main()

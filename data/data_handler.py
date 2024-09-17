@@ -1,5 +1,6 @@
 import csv
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 
@@ -25,6 +26,12 @@ class DataHandler:
         df['asset'] = asset_name
         df.set_index('date', inplace=True)
         df.sort_index(inplace=True)
+        
+        # Handle missing or zero values in 'price'
+        df['price'].replace(0, np.nan, inplace=True)   # Replace zeros with NaN
+        df['price'].fillna(method='ffill', inplace=True)  # Forward-fill NaN values
+        df.dropna(subset=['price'], inplace=True)  # Ensure no remaining NaN values
+
         self.data[asset_name] = df
         return df
 

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
+import logging
 
 class StrategyBase(ABC):
     @abstractmethod
@@ -27,7 +28,12 @@ class MovingAverageCrossover(StrategyBase):
         df.loc[df['short_ma'] > df['long_ma'], 'signal'] = 1  # Buy
         df.loc[df['short_ma'] < df['long_ma'], 'signal'] = -1  # Sell
 
-        df['position'] = df['signal'].diff()
+        # Calculate position changes
+        df['position'] = df['signal'].diff().fillna(0)
+
+        # Log the first few signals and positions
+        logging.info(f"Signals and positions for the first few entries in the strategy:")
+        logging.info(df[['price', 'short_ma', 'long_ma', 'signal', 'position']].head(15))
 
         self.signals = df[['price', 'short_ma', 'long_ma', 'signal', 'position']].dropna()
         return self.signals
