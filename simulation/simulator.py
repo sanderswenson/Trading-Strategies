@@ -20,7 +20,6 @@ class Simulator:
 
         for date in all_dates:
             daily_portfolio_value = self.cash
-            logging.info(f"Processing date: {date.date()}")
 
             for asset in data_dict.keys():
                 data = data_dict[asset]
@@ -53,18 +52,18 @@ class Simulator:
                                 self.cash -= trade_cost
                                 self.positions[asset] = position + units_to_buy
 
-                                trade = pd.DataFrame({
-                                    'date': [date],
-                                    'asset': [asset],
-                                    'action': ['buy'],
-                                    'units': [units_to_buy],
-                                    'price': [price],
-                                    'trade_cost': [trade_cost],
-                                    'cash': [self.cash],
-                                    'position': [self.positions[asset]]
-                                })
+                                trade = {
+                                    'Date': date,
+                                    'Asset': asset,
+                                    'Action': 'buy',
+                                    'Units': units_to_buy,
+                                    'Price': price,
+                                    'Cost/Revenue': trade_cost,
+                                    'Cash': self.cash,
+                                    'Position': self.positions[asset]
+                                }
                                 self.trade_history.append(trade)
-                                logging.info(f"Executed buy trade: {trade.to_dict('records')[0]}")
+                                logging.info(f"Executed buy trade: {trade}")
                             else:
                                 logging.warning(f"Insufficient cash to buy {asset} on {date.date()}. Required: {trade_cost}, Available: {self.cash}")
 
@@ -77,18 +76,18 @@ class Simulator:
                                 self.cash += revenue
                                 self.positions[asset] = position - units_to_sell
 
-                                trade = pd.DataFrame({
-                                    'date': [date],
-                                    'asset': [asset],
-                                    'action': ['sell'],
-                                    'units': [units_to_sell],
-                                    'price': [price],
-                                    'revenue': [revenue],
-                                    'cash': [self.cash],
-                                    'position': [self.positions[asset]]
-                                })
+                                trade = {
+                                    'Date': date,
+                                    'Asset': asset,
+                                    'Action': 'sell',
+                                    'Units': units_to_sell,
+                                    'Price': price,
+                                    'Cost/Revenue': revenue,
+                                    'Cash': self.cash,
+                                    'Position': self.positions[asset]
+                                }
                                 self.trade_history.append(trade)
-                                logging.info(f"Executed sell trade: {trade.to_dict('records')[0]}")
+                                logging.info(f"Executed sell trade: {trade}")
                             else:
                                 logging.warning(f"Insufficient units to sell {asset} on {date.date()}. Required: {units_to_sell}, Available: {self.positions.get(asset, 0)}")
 

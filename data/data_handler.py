@@ -55,26 +55,36 @@ class DataHandler:
         pass
 
     def save_results(self, portfolio_values, trade_history, signals_dict, filename):
-        # Create a DataFrame for portfolio values
-        portfolio_df = pd.DataFrame(portfolio_values, columns=['Date', 'Portfolio Value'])
-        portfolio_df.set_index('Date', inplace=True)
+        # Create DataFrame for portfolio values
+        portfolio_df = pd.DataFrame(portfolio_values).reset_index(drop=True)
+        portfolio_df.rename(columns={'date': 'Date', 'portfolio_value': 'Portfolio_Value'}, inplace=True)
 
-        # Create a DataFrame for trade history
-        trade_df = pd.DataFrame(trade_history, columns=['Date', 'Asset', 'Action', 'Units', 'Price', 'Cost/Revenue'])
-        trade_df.set_index('Date', inplace=True)
+        # Create DataFrame for trade history
+        trade_df = pd.DataFrame(trade_history).reset_index(drop=True)
+        trade_df.rename(columns={'Date': 'Trade_Date'}, inplace=True)
 
-        # Create a DataFrame for signals
-        signals_df = pd.DataFrame(signals_dict)
-        signals_df.set_index('Date', inplace=True)
+        # Process signals_dict to create a combined signals DataFrame
+        signals_list = []
+        for asset, signals in signals_dict.items():
+            temp_df = signals[['signal', 'position']].copy()
+            temp_df.reset_index(inplace=True)
+            temp_df.rename(columns={
+                'index': 'Date',
+                'signal': f'{asset}_signal',
+                'position': f'{asset}_position'
+            }, inplace=True)
+            signals_list.append(temp_df)
 
-        # Combine all DataFrames
-        combined_df = portfolio_df.join([trade_df, signals_df], how='outer')
+        # Concatenate all signals DataFrames column-wise
+        signals_df = pd.concat(signals_list, axis=1)
+        # Remove duplicate 'Date' columns if any
+        signals_df = signals_df.loc[:, ~signals_df.columns.duplicated()]
 
-        # Sort the combined DataFrame by date
-        combined_df.sort_index(inplace=True)
+        # Combine all DataFrames column-wise
+        combined_df = pd.concat([portfolio_df, trade_df, signals_df], axis=1)
 
         # Save the combined DataFrame to a CSV file
         output_file = self.data_dir / f'{filename}.csv'
-        combined_df.to_csv(output_file)
+        combined_df.to_csv(output_file, index=False)
 
         print(f"Results saved to {output_file}")
