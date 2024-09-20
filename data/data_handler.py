@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+from contextlib import contextmanager
 
 
 # DataHandler class is responsible for loading and providing access to financial data from CSV files.
@@ -52,3 +53,28 @@ class DataHandler:
         # 3. Sort data by date
         # 4. Return preprocessed data
         pass
+
+    def save_results(self, portfolio_values, trade_history, signals_dict, filename):
+        # Create a DataFrame for portfolio values
+        portfolio_df = pd.DataFrame(portfolio_values, columns=['Date', 'Portfolio Value'])
+        portfolio_df.set_index('Date', inplace=True)
+
+        # Create a DataFrame for trade history
+        trade_df = pd.DataFrame(trade_history, columns=['Date', 'Asset', 'Action', 'Units', 'Price', 'Cost/Revenue'])
+        trade_df.set_index('Date', inplace=True)
+
+        # Create a DataFrame for signals
+        signals_df = pd.DataFrame(signals_dict)
+        signals_df.set_index('Date', inplace=True)
+
+        # Combine all DataFrames
+        combined_df = portfolio_df.join([trade_df, signals_df], how='outer')
+
+        # Sort the combined DataFrame by date
+        combined_df.sort_index(inplace=True)
+
+        # Save the combined DataFrame to a CSV file
+        output_file = self.data_dir / f'{filename}.csv'
+        combined_df.to_csv(output_file)
+
+        print(f"Results saved to {output_file}")

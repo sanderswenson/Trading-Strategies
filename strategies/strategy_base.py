@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import pandas as pd
-import numpy as np
 import logging
 
 class StrategyBase(ABC):
@@ -15,25 +14,26 @@ class MovingAverageCrossover(StrategyBase):
         self.signals = None
 
     def generate_signals(self, df):
-        # Ensure 'date' is the index
         if df.index.name != 'date':
-            df.set_index('date', inplace=True)
-        
-        # Calculate short and long moving averages
-        df['short_ma'] = df['price'].rolling(window=self.short_window).mean()
-        df['long_ma'] = df['price'].rolling(window=self.long_window).mean()
+            df = df.set_index('date')
 
-        # Generate signals
-        df['signal'] = 0  # Hold
-        df.loc[df['short_ma'] > df['long_ma'], 'signal'] = 1  # Buy
-        df.loc[df['short_ma'] < df['long_ma'], 'signal'] = -1  # Sell
+        # Handle missing price data by dropping rows with NaN in 'price'
+        df = df.dropna(subset=['price'])
+
+        # Calculate moving averages
+        df['short_ma'] = df['price'].rolling(window=self.short_window, min_periods=1).mean()
+        df['long_ma'] = df['price'].rolling(window=self.long_window, min_periods=1).mean()
+
+        # Generate signals: Buy (1), Sell (-1), Hold (0)
+        df['signal'] = 0
+        df.loc[df['short_ma'] > df['long_ma'], 'signal'] = 1
+        df.loc[df['short_ma'] < df['long_ma'], 'signal'] = -1
 
         # Calculate position changes
         df['position'] = df['signal'].diff().fillna(0)
 
-        # Log the first few signals and positions
-        logging.info(f"Signals and positions for the first few entries in the strategy:")
-        logging.info(df[['price', 'short_ma', 'long_ma', 'signal', 'position']].head(15))
+        # Log signals for debugging
+        logging.debug(f"Generated signals:\n{df[['price', 'short_ma', 'long_ma', 'signal', 'position']].head()}")
 
-        self.signals = df[['price', 'short_ma', 'long_ma', 'signal', 'position']].dropna()
+        self.signals = df[['price', 'signal', 'position']].copy()
         return self.signals

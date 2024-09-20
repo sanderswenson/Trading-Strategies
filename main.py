@@ -1,15 +1,18 @@
 import sys
 from pathlib import Path
 import pandas as pd
+import logging
 
-# Add the project root directory to the Python path
+# Set up logging configuration (adjust the level as needed)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Adding the project root directory to the Python path
 project_root = Path(__file__).resolve().parent
 sys.path.append(str(project_root))
 
 from data.data_handler import DataHandler
 from strategies.strategy_base import MovingAverageCrossover
 from simulation.simulator import Simulator
-from utils.performance_evaluator import PerformanceEvaluator
 
 def main():
     data_handler = DataHandler()
@@ -27,33 +30,39 @@ def main():
         'GOLD': MovingAverageCrossover(short_window=10, long_window=30)
     }
 
-    # Generate signals
-    signals_dict = {
-        name: strategies[name].generate_signals(data)
-        for name, data in data_dict.items()
-    }
+    # Generate signals for each asset
+    signals_dict = {}
+    for asset in asset_names:
+        data = data_dict[asset]
+        strategy = strategies[asset]
+        signals = strategy.generate_signals(data)
+        signals_dict[asset] = signals
+
+    # Verify that signals are generating trades
+    for asset in asset_names:
+        signals = signals_dict[asset]
+        print(f"Signals for {asset}:\n", signals[['signal', 'position']].head())
 
     # Initialize simulator
-    commission_fees = {'BTC': 0.02, 'GOLD': 0.01}  # 2% for BTC, 1% for GOLD
-    simulator = Simulator(
-        data_handler, strategies,
-        initial_capital=1000, commission_fees=commission_fees
-    )
-    trade_history, portfolio_value = simulator.simulate_trades(data_dict, signals_dict)
-    
-    # Print a few trade signals for each asset
-    for asset, signals in signals_dict.items():
-        print(f"\nTrade signals for {asset}:")
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.width', None)
-        print(signals[['price', 'signal', 'position']].head(30))
-        pd.reset_option('display.max_rows')
-        pd.reset_option('display.max_columns')
-        pd.reset_option('display.width')
-    # Print portfolio value
-    print("\nFinal portfolio value:")
-    print(portfolio_value)
+    simulator = Simulator(initial_capital=1000, commission_fees=commission_fees)
+
+    # Run simulation
+    trade_history, portfolio_values = simulator.simulate_trades(data_dict, signals_dict)
+
+    # Print trade history
+    print("\nTrade History:")
+    print(trade_history)
+
+    # Print portfolio value over time
+    print("\nPortfolio Value Over Time:")
+    print(portfolio_values)
+
+    # Prompt for file name and save results if provided
+    filename = input("Enter a filename to save results (leave blank to skip saving): ").strip()
+    if filename:
+        data_handler.save_results(portfolio_values, trade_history, signals_dict, filename)
+    else:
+        print("Results not saved.")
 
 if __name__ == "__main__":
     main()

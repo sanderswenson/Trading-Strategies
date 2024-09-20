@@ -1,110 +1,110 @@
 import pandas as pd
 import logging
 
-# Set up logging configuration
+# Set up logging configuration (adjust the level as needed)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Simulator:
-    def __init__(self, data_handler, strategies, initial_capital=1000, commission_fees=None):
-        self.data_handler = data_handler
-        self.strategies = strategies
+    def __init__(self, initial_capital=1000, commission_fees=None):
         self.initial_capital = initial_capital
-        self.commission_fees = commission_fees if commission_fees else {}
-        self.positions = {asset: 0 for asset in strategies.keys()}
+        self.commission_fees = commission_fees or {}
+        self.cash = initial_capital
+        # Positions for each asset
+        self.positions = {}
         self.trade_history = []
+        self.portfolio_values = []
 
     def simulate_trades(self, data_dict, signals_dict):
-        # Initialize portfolio value history
-        portfolio_values = []
-
-        # Corrected: Combine all dates from signals
-        all_dates = sorted(set().union(*[signals.index for signals in signals_dict.values()]))
+        # Get the union of all dates from all assets
+        all_dates = sorted(set().union(*(data.index for data in data_dict.values())))
 
         for date in all_dates:
-            for asset, signals in signals_dict.items():
-                if date in signals.index:
-                    signal_row = signals.loc[date]
-                    position_change = signal_row['position']
-                    price = signal_row['price']
-                    fee_rate = self.commission_fees.get(asset, 0)
+            daily_portfolio_value = self.cash
+            logging.info(f"Processing date: {date.date()}")
 
-                    # Log the signal and position change
-                    logging.debug(f"Asset: {asset} | Signal: {signal_row['signal']} | Position Change: {position_change} | Price: {price}")
+            for asset in data_dict.keys():
+                data = data_dict[asset]
+                signals = signals_dict[asset]
+                commission_fee = self.commission_fees.get(asset, 0)
+                position = self.positions.get(asset, 0)
 
-                    # Buy
-                    if position_change > 0:
-                        # Calculate total cost including commission
-                        trade_cost = position_change * price * (1 + fee_rate)
-                        logging.debug(f"Attempting to buy {position_change} units of {asset} at {price} per unit with {fee_rate*100}% fee. Total cost: {trade_cost}")
+                # Check if price data is available for the asset on this date
+                if date in data.index and pd.notna(data.loc[date, 'price']):
+                    price = data.loc[date, 'price']
 
-                        if self.initial_capital >= trade_cost:
-                            # Update positions and capital
-                            self.positions[asset] += position_change
-                            self.initial_capital -= trade_cost
+                    # Update daily portfolio value with current holdings
+                    daily_portfolio_value += position * price
 
-                            # Log the trade execution
-                            trade = {
-                                'date': date,
-                                'asset': asset,
-                                'position_change': position_change,
-                                'price': price,
-                                'trade_amount': trade_cost,
-                                'fee': trade_cost - (position_change * price),
-                                'capital': self.initial_capital,
-                                'positions': self.positions.copy()
-                            }
-                            logging.info(f"Executed buy trade: {trade}")
-                            self.trade_history.append(trade)
-                        else:
-                            logging.warning(f"Not enough capital to buy {position_change} units of {asset} on {date.date()}. Needed: {trade_cost}, Available: {self.initial_capital}")
+                    # Check if there's a signal for the asset on this date
+                    if date in signals.index:
+                        signal_row = signals.loc[date]
+                        position_change = signal_row['position']
 
-                    # Sell
-                    elif position_change < 0:
-                        sell_units = -position_change
-                        if self.positions[asset] >= sell_units:
-                            # Calculate net revenue after commission
-                            gross_revenue = sell_units * price
-                            fee = gross_revenue * fee_rate
-                            net_revenue = gross_revenue - fee
+                        logging.debug(f"Asset: {asset} | Signal: {signal_row['signal']} | Position Change: {position_change} | Price: {price}")
 
-                            # Update positions and capital
-                            self.positions[asset] -= sell_units
-                            self.initial_capital += net_revenue
+                        # Buy
+                        if position_change > 0:
+                            units_to_buy = position_change  # This could be a fractional number
+                            max_affordable_units = self.cash / (price * (1 + commission_fee))
+                            units_to_buy = min(units_to_buy, max_affordable_units)
+                            trade_cost = units_to_buy * price * (1 + commission_fee)
 
-                            # Log the trade execution
-                            trade = {
-                                'date': date,
-                                'asset': asset,
-                                'position_change': -sell_units,
-                                'price': price,
-                                'trade_amount': net_revenue,
-                                'fee': fee,
-                                'capital': self.initial_capital,
-                                'positions': self.positions.copy()
-                            }
-                            logging.info(f"Executed sell trade: {trade}")
-                            self.trade_history.append(trade)
-                        else:
-                            logging.warning(f"Not enough {asset} to sell {sell_units} units on {date.date()}. Current position: {self.positions[asset]}")
+                            if units_to_buy > 0:
+                                self.cash -= trade_cost
+                                self.positions[asset] = position + units_to_buy
 
-                    else:
-                        # No trade
-                        logging.debug(f"No position change for {asset} on {date.date()}")
+                                trade = pd.DataFrame({
+                                    'date': [date],
+                                    'asset': [asset],
+                                    'action': ['buy'],
+                                    'units': [units_to_buy],
+                                    'price': [price],
+                                    'trade_cost': [trade_cost],
+                                    'cash': [self.cash],
+                                    'position': [self.positions[asset]]
+                                })
+                                self.trade_history.append(trade)
+                                logging.info(f"Executed buy trade: {trade.to_dict('records')[0]}")
+                            else:
+                                logging.warning(f"Insufficient cash to buy {asset} on {date.date()}. Required: {trade_cost}, Available: {self.cash}")
+
+                        # Sell
+                        elif position_change < 0:
+                            units_to_sell = min(-position_change, self.positions.get(asset, 0))
+                            revenue = units_to_sell * price * (1 - commission_fee)
+
+                            if units_to_sell > 0:
+                                self.cash += revenue
+                                self.positions[asset] = position - units_to_sell
+
+                                trade = pd.DataFrame({
+                                    'date': [date],
+                                    'asset': [asset],
+                                    'action': ['sell'],
+                                    'units': [units_to_sell],
+                                    'price': [price],
+                                    'revenue': [revenue],
+                                    'cash': [self.cash],
+                                    'position': [self.positions[asset]]
+                                })
+                                self.trade_history.append(trade)
+                                logging.info(f"Executed sell trade: {trade.to_dict('records')[0]}")
+                            else:
+                                logging.warning(f"Insufficient units to sell {asset} on {date.date()}. Required: {units_to_sell}, Available: {self.positions.get(asset, 0)}")
+
+                        # No action for position_change == 0
+
                 else:
-                    logging.debug(f"No signal for {asset} on {date.date()}")
+                    # Price data is missing for this asset on this date
+                    logging.warning(f"Price data missing for {asset} on {date.date()}. Skipping trades for this asset today.")
 
-            # Calculate total portfolio value for the day
-            total_asset_value = sum(
-                self.positions[asset] * data_dict[asset].loc[date, 'price']
-                if date in data_dict[asset].index else 0
-                for asset in self.positions
-            )
-            portfolio_value = self.initial_capital + total_asset_value
-            portfolio_values.append({'date': date, 'portfolio_value': portfolio_value})
-
-            logging.debug(f"Total portfolio value on {date.date()}: {portfolio_value}")
+            # Record portfolio value for the day
+            self.portfolio_values.append({'date': date, 'portfolio_value': daily_portfolio_value})
 
         # Convert portfolio values to DataFrame
-        portfolio_values_df = pd.DataFrame(portfolio_values).set_index('date')
+        portfolio_values_df = pd.DataFrame(self.portfolio_values).set_index('date')
 
         return self.trade_history, portfolio_values_df
+    
+
+# make a function to trade based on target portfolio weights

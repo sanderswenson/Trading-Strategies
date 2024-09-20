@@ -1,0 +1,18 @@
+Portfolio Values
+Date,Portfolio Value
+portfolio_value,"date
+2016-09-11    1000.000000
+2016-09-12    1000.000000
+2016-09-13    1000.000000
+2016-09-14    1000.000000
+2016-09-15    1000.000000
+                 ...     
+2021-09-06    4760.645830
+2021-09-07    4747.609298
+2021-09-08    4565.478695
+2021-09-09    4550.801212
+2021-09-10    4570.237998
+Name: portfolio_value, Length: 1826, dtype: float64"
+
+Trade History
+Date,Asset,Action,Units,Price,Cost/Revenue
