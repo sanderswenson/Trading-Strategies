@@ -5,9 +5,9 @@ class Balancer:
     def __init__(self):
         pass
 
-    def minimize_function(self, initial_guess):
-        # Define the objective function to minimize
-        def objective_function(x):
+    def minimize_sharpe(self, initial_guess):
+        # Define the objective sharpe to minimize
+        def objective_sharpe(x):
             # Replace this with your actual function
             return x[0]**2 + x[1]**2 + x[2]**2
 
@@ -21,7 +21,7 @@ class Balancer:
 
         # Perform the minimization
         result = minimize(
-            objective_function,
+            objective_sharpe,
             initial_guess,
             method='SLSQP',
             bounds=bounds,

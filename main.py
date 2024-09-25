@@ -41,7 +41,7 @@ def main():
     # Verify that signals are generating trades
     for asset in asset_names:
         signals = signals_dict[asset]
-        print(f"Signals for {asset}:\n", signals[['signal', 'position']].head())
+        print(f"Signals for {asset}:\n", signals[['price', 'short_ma', 'long_ma', 'signal']])
 
     # Initialize simulator
     simulator = Simulator(initial_capital=1000, commission_fees=commission_fees)
@@ -50,8 +50,8 @@ def main():
     trade_history, portfolio_values = simulator.simulate_trades(data_dict, signals_dict)
 
     # Print trade history
-    print("\nTrade History:")
-    print(trade_history)
+    #print("\nTrade History:")
+    #print(trade_history)
 
     # Print portfolio value over time
     print("\nPortfolio Value Over Time:")

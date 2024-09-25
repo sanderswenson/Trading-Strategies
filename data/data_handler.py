@@ -66,10 +66,10 @@ class DataHandler:
         # Process signals_dict to create a combined signals DataFrame
         signals_list = []
         for asset, signals in signals_dict.items():
-            temp_df = signals[['signal', 'position']].copy()
+            temp_df = signals.copy()
             temp_df.reset_index(inplace=True)
             temp_df.rename(columns={
-                'index': 'Date',
+                'date': 'Date',
                 'signal': f'{asset}_signal',
                 'position': f'{asset}_position'
             }, inplace=True)
@@ -82,6 +82,13 @@ class DataHandler:
 
         # Combine all DataFrames column-wise
         combined_df = pd.concat([portfolio_df, trade_df, signals_df], axis=1)
+
+        # Align data with all possible dates
+        all_dates = pd.date_range(start=combined_df['Date'].min(), end=combined_df['Date'].max())
+        combined_df = combined_df.set_index('Date').reindex(all_dates).reset_index().rename(columns={'index': 'Date'})
+
+        # Align trade_df with all possible dates
+        trade_df = trade_df.set_index('Trade_Date').reindex(all_dates).reset_index().rename(columns={'index': 'Trade_Date'})
 
         # Save the combined DataFrame to a CSV file
         output_file = self.data_dir / f'{filename}.csv'

@@ -29,11 +29,8 @@ class MovingAverageCrossover(StrategyBase):
         df.loc[df['short_ma'] > df['long_ma'], 'signal'] = 1
         df.loc[df['short_ma'] < df['long_ma'], 'signal'] = -1
 
-        # Calculate position changes
-        df['position'] = df['signal'].diff().fillna(0)
-
         # Log signals for debugging
-        logging.debug(f"Generated signals:\n{df[['price', 'short_ma', 'long_ma', 'signal', 'position']].head()}")
+        logging.debug(f"Generated signals:\n{df[['price', 'short_ma', 'long_ma', 'signal']].head()}")
 
-        self.signals = df[['price', 'signal', 'position']].copy()
+        self.signals = df[['price', 'short_ma', 'long_ma', 'signal']].copy()
         return self.signals
