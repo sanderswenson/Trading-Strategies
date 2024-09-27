@@ -5,11 +5,16 @@ class Balancer:
     def __init__(self):
         pass
 
-    def minimize_sharpe(self, initial_guess):
+    def minimize_sharpe(self, initial_guess, data_matrix):
+        # data_matrix must have portfolio in column 1, and assets in 2-4
+        # TODO: implement for pandas dataframes
         # Define the objective sharpe to minimize
-        def objective_sharpe(x):
-            # Replace this with your actual function
-            return x[0]**2 + x[1]**2 + x[2]**2
+        def objective_sharpe(data_matrix):
+            p = data_matrix[:,1]
+            x = np.array([(xi / np.sum(p)) for xi in p])
+            Q = np.cov([data_matrix[:,2], data_matrix[:,3], data_matrix[:,4]])
+            # function to minimize
+            return x.T.dot(Q).dot(x)
 
         # Constraints (if any)
         constraints = (
