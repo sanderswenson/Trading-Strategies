@@ -54,44 +54,69 @@ class DataHandler:
         # 4. Return preprocessed data
         pass
 
-    def save_results(self, portfolio_values, trade_history, signals_dict, filename):
-        # Create DataFrame for portfolio values
-        portfolio_df = pd.DataFrame(portfolio_values).reset_index(drop=True)
-        portfolio_df.rename(columns={'date': 'Date', 'portfolio_value': 'Portfolio_Value'}, inplace=True)
+    def save_results(self, portfolio_values, filename):
+        # Convert portfolio_values to DataFrame
+        portfolio_df = pd.DataFrame(portfolio_values).reset_index()
 
-        # Create DataFrame for trade history
-        trade_df = pd.DataFrame(trade_history).reset_index(drop=True)
-        trade_df.rename(columns={'Date': 'Trade_Date'}, inplace=True)
+        # Debug print to check the columns of portfolio_df
+        print("portfolio_df columns:", portfolio_df.columns)
 
-        # Process signals_dict to create a combined signals DataFrame
-        signals_list = []
-        for asset, signals in signals_dict.items():
-            temp_df = signals.copy()
-            temp_df.reset_index(inplace=True)
-            temp_df.rename(columns={
-                'date': 'Date',
-                'signal': f'{asset}_signal',
-                'position': f'{asset}_position'
-            }, inplace=True)
-            signals_list.append(temp_df)
+        # Expand positions and prices dictionaries into separate columns
+        positions_df = portfolio_df['positions'].apply(pd.Series)
+        prices_df = portfolio_df['prices'].apply(pd.Series)
 
-        # Concatenate all signals DataFrames column-wise
-        signals_df = pd.concat(signals_list, axis=1)
-        # Remove duplicate 'Date' columns if any
-        signals_df = signals_df.loc[:, ~signals_df.columns.duplicated()]
+        # Handle trades
+        trades_expanded = portfolio_df[['date', 'trades']].explode('trades')
+        if not trades_expanded['trades'].isnull().all():
+            trades_df = pd.json_normalize(trades_expanded['trades']).add_prefix('trade_')
+            trades_df['Date'] = trades_expanded['date'].values
+        else:
+            trades_df = pd.DataFrame(columns=['Date', 'trade_Action', 'trade_Asset'])
 
-        # Combine all DataFrames column-wise
-        combined_df = pd.concat([portfolio_df, trade_df, signals_df], axis=1)
+        # Debug print to check the columns of trades_df
+        print("trades_df columns:", trades_df.columns)
 
-        # Align data with all possible dates
-        all_dates = pd.date_range(start=combined_df['Date'].min(), end=combined_df['Date'].max())
-        combined_df = combined_df.set_index('Date').reindex(all_dates).reset_index().rename(columns={'index': 'Date'})
+        # Merge all data into a single DataFrame
+        result_df = pd.concat([
+            portfolio_df[['date', 'portfolio_value', 'cash']],
+            positions_df.add_suffix('_position'),
+            prices_df.add_suffix('_price')
+        ], axis=1)
 
-        # Align trade_df with all possible dates
-        trade_df = trade_df.set_index('Trade_Date').reindex(all_dates).reset_index().rename(columns={'index': 'Trade_Date'})
+        # Ensure 'date' column is renamed to 'Date' before merging
+        result_df.rename(columns={'date': 'Date'}, inplace=True)
 
-        # Save the combined DataFrame to a CSV file
+        # Debug print to check the columns of result_df before merging
+        print("result_df columns before merge:", result_df.columns)
+
+        # Merge trades into the result DataFrame
+        result_df = result_df.merge(trades_df, on='Date', how='left')
+
+        # Rename columns to match the desired format
+        result_df.rename(columns={
+            'portfolio_value': 'Total Portfolio Value',
+            'cash': 'Cash',
+            'BTC_position': 'BTC',
+            'BTC_price': 'BTC Price',
+            'GOLD_position': 'Gold',
+            'GOLD_price': 'Gold Price',
+            'trade_Action': 'Trade',
+            'trade_Asset': 'Asset Traded'
+        }, inplace=True)
+
+        # Select only the required columns
+        result_df = result_df[[
+            'Date', 'Total Portfolio Value', 'Cash',
+            'BTC', 'BTC Price',
+            'Gold', 'Gold Price',
+            'Trade', 'Asset Traded'
+        ]]
+
+        # Sort the DataFrame by Date
+        result_df.sort_values('Date', inplace=True)
+
+        # Save the DataFrame to a CSV file
         output_file = self.data_dir / f'{filename}.csv'
-        combined_df.to_csv(output_file, index=False)
+        result_df.to_csv(output_file, index=False)
 
         print(f"Results saved to {output_file}")

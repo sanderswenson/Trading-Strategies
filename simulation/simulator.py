@@ -24,6 +24,9 @@ class Simulator:
 
         for date in all_dates:
             daily_portfolio_value = self.cash
+            daily_positions = {}
+            daily_prices = {}
+            daily_trades = []
 
             for asset in data_dict.keys():
                 data = data_dict[asset]
@@ -34,6 +37,7 @@ class Simulator:
                 # Check if price data is available for the asset on this date
                 if date in data.index and pd.notna(data.loc[date, 'price']):
                     price = data.loc[date, 'price']
+                    daily_prices[asset] = price
 
                     # Update daily portfolio value with current holdings
                     daily_portfolio_value += position * price
@@ -43,18 +47,27 @@ class Simulator:
                         signal_row = signals.loc[date]
                         position_change = signal_row['signal']
 
-                        logging.debug(f"Asset: {asset} | Signal: {signal_row['signal']} | Position Change: {position_change} | Price: {price}")
-
                         # Execute trades based on the signal
-                        self.execute_trade(date, asset, position_change, price, commission_fee)
-
+                        trade = self.execute_trade(date, asset, position_change, price, commission_fee)
+                        if trade:
+                            self.trade_history.append(trade)
+                            daily_trades.append(trade)
                 else:
                     # Price data is missing for this asset on this date
-                    #logging.warning(f"Price data missing for {asset} on {date.date()}. Skipping trades for this asset today.")
-                    pass
+                    daily_prices[asset] = None
 
-            # Record portfolio value for the day
-            self.portfolio_values.append({'date': date, 'portfolio_value': daily_portfolio_value})
+                # Record position for the asset
+                daily_positions[asset] = self.positions.get(asset, 0)
+
+            # Record daily portfolio value, cash, positions, prices, and trades
+            self.portfolio_values.append({
+                'date': date,
+                'portfolio_value': daily_portfolio_value,
+                'cash': self.cash,
+                'positions': daily_positions,
+                'prices': daily_prices,
+                'trades': daily_trades
+            })
 
         # Convert portfolio values to DataFrame
         portfolio_values_df = pd.DataFrame(self.portfolio_values).set_index('date')

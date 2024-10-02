@@ -60,7 +60,7 @@ def main():
     # Prompt for file name and save results if provided
     filename = input("Enter a filename to save results (leave blank to skip saving): ").strip()
     if filename:
-        data_handler.save_results(portfolio_values, trade_history, signals_dict, filename)
+        data_handler.save_results(portfolio_values, filename)
     else:
         print("Results not saved.")
 
