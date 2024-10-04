@@ -30,8 +30,7 @@ class DataHandler:
         
         # Handle missing or zero values in 'price'
         df['price'].replace(0, np.nan, inplace=True)   # Replace zeros with NaN
-        df['price'].fillna(method='ffill', inplace=True)  # Forward-fill NaN values
-        df.dropna(subset=['price'], inplace=True)  # Ensure no remaining NaN values
+        df.dropna(subset=['price'], inplace=True)  # Remove rows with NaN prices
 
         self.data[asset_name] = df
         return df
@@ -99,9 +98,7 @@ class DataHandler:
             'BTC_position': 'BTC',
             'BTC_price': 'BTC Price',
             'GOLD_position': 'Gold',
-            'GOLD_price': 'Gold Price',
-            'trade_Action': 'Trade',
-            'trade_Asset': 'Asset Traded'
+            'GOLD_price': 'Gold Price'
         }, inplace=True)
 
         # Select only the required columns
@@ -109,7 +106,6 @@ class DataHandler:
             'Date', 'Total Portfolio Value', 'Cash',
             'BTC', 'BTC Price',
             'Gold', 'Gold Price',
-            'Trade', 'Asset Traded'
         ]]
 
         # Sort the DataFrame by Date

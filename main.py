@@ -28,7 +28,7 @@ def main():
     strategies = {
         'BTC': MovingAverageCrossover(short_window=10, long_window=30),
         'GOLD': MovingAverageCrossover(short_window=10, long_window=30)
-    }
+        }
 
     # Generate signals for each asset
     signals_dict = {}

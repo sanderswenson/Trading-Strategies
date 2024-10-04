@@ -22,6 +22,9 @@ class Simulator:
         # Get the union of all dates from all assets
         all_dates = sorted(set().union(*(data.index for data in data_dict.values())))
 
+        # Initialize last known prices for each asset
+        last_known_prices = {asset: None for asset in data_dict.keys()}
+
         for date in all_dates:
             daily_portfolio_value = self.cash
             daily_positions = {}
@@ -37,6 +40,7 @@ class Simulator:
                 # Check if price data is available for the asset on this date
                 if date in data.index and pd.notna(data.loc[date, 'price']):
                     price = data.loc[date, 'price']
+                    last_known_prices[asset] = price  # Update last known price
                     daily_prices[asset] = price
 
                     # Update daily portfolio value with current holdings
@@ -50,14 +54,22 @@ class Simulator:
                         # Execute trades based on the signal
                         trade = self.execute_trade(date, asset, position_change, price, commission_fee)
                         if trade:
-                            self.trade_history.append(trade)
                             daily_trades.append(trade)
                 else:
                     # Price data is missing for this asset on this date
-                    daily_prices[asset] = None
+                    daily_prices[asset] = last_known_prices[asset]  # Use last known price
+
+                    # Update daily portfolio value with current holdings
+                    if last_known_prices[asset] is not None:
+                        daily_portfolio_value += position * last_known_prices[asset]
+                    else:
+                        # If we don't have a last known price, assume asset value is zero
+                        daily_portfolio_value += 0
+
+                    # Cannot trade on this date since there is no price data
 
                 # Record position for the asset
-                daily_positions[asset] = self.positions.get(asset, 0)
+                daily_positions[asset] = position
 
             # Record daily portfolio value, cash, positions, prices, and trades
             self.portfolio_values.append({
