@@ -1,28 +1,34 @@
 import numpy  as np
 import pandas as pd
 
-def simulate_trades(all_assets_df, weights_df, commissions_df, signals_df, principal=1000):
-    # note that weights are also in a data frame, allowing for fine-tuning on certain dates.
+def simulate_trades(all_assets_df, weights, commissions, signals_df, principal=1000):
 
-    # initializing portfolio data
-    # TODO: can't trade on first days due to SMA signals, do we initialize handpicked trades for those days?
+    # TODO: make cash an asset? doesn't seem standard, but it might make sense.
     portfolio = pd.DataFrame(index=all_assets_df.index, columns=all_assets_df.columns)
     portfolio[:] = 0
-    # TODO: make cash an asset? doesn't seem standard, but it might make sense.
     cash = principal
 
     portfolio_value = pd.DataFrame(index=all_assets_df.index, columns=["Portfolio Value"])
 
-    # TODO: only take mean returns in recent days? how recent should this be?
-    mean_returns = all_assets_df.pct_change().mean()
+    # track portfolio
+    portfolio_hist = pd.Series(0, index=all_assets_df.columns)
 
     for date in all_assets_df.index:
         current_prices = all_assets_df.loc[date]
         signals = signals_df.loc[date]  # 1 is buy -1 is sell 0 is hold
 
+        if date != all_assets_df.index[0]:
+            portfolio.loc[date] = portfolio_hist
+
         net_worth = cash + (portfolio.loc[date] * current_prices).sum()
         # putting EVERYTHING on the line
-        target_allocation = {asset: weights_df[asset] * net_worth for asset in all_assets_df.columns}
+        target_allocation = {asset: weights[asset] * net_worth for asset in all_assets_df.columns}
+
+        # mean returns in past 5 day period
+        date_index = all_assets_df.index.get_loc(date)
+        start_index = max(0, date_index - 5)
+        period_df = all_assets_df.iloc[start_index:date_index]
+        mean_returns = period_df.pct_change().mean()
 
         # actual simulation
         for asset in all_assets_df.columns:
@@ -61,6 +67,9 @@ def simulate_trades(all_assets_df, weights_df, commissions_df, signals_df, princ
                 if signal == -1 and expected_loss > commission_cost:
                     portfolio.loc[date, asset] -= units_to_sell
                     cash += trade_value - commission_cost
+
+        # update previous_portfolio
+        portfolio_hist = portfolio.loc[date]
 
         # data outputs
         total_portfolio_value = cash + (portfolio.loc[date] * current_prices).sum()
