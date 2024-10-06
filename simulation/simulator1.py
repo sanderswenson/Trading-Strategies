@@ -1,7 +1,7 @@
 import numpy  as np
 import pandas as pd
 
-def simulate_trades(all_assets_df, weights, commissions, signals_df, principal=1000):
+def simulate_trades(all_assets_df, weights_df, commissions, signals_df, principal=1000):
 
     # TODO: make cash an asset? doesn't seem standard, but it might make sense.
     portfolio = pd.DataFrame(index=all_assets_df.index, columns=all_assets_df.columns)
@@ -14,6 +14,8 @@ def simulate_trades(all_assets_df, weights, commissions, signals_df, principal=1
     portfolio_hist = pd.Series(0, index=all_assets_df.columns)
 
     for date in all_assets_df.index:
+        weights = weights_df.loc[date].item()
+
         current_prices = all_assets_df.loc[date]
         signals = signals_df.loc[date]  # 1 is buy -1 is sell 0 is hold
 

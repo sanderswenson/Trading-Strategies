@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import logging
 
@@ -12,6 +13,7 @@ sys.path.append(str(project_root))
 
 from data.data_handler import DataHandler
 from strategies.strategy_base import MovingAverageCrossover
+from strategies.balancer import optimize_scipy
 from simulation.simulator1 import simulate_trades
 
 def main():
@@ -55,13 +57,44 @@ def main():
 
     # Weights as dict
     weights = {'BTC': 0.97, 'GOLD': 0.03}
+    weights_df = pd.DataFrame(index=all_assets_df.index, columns=['Weights'])
+    weights_df.at['2016-09-11','Weights'] = weights
+    weights_df.at['2016-09-12','Weights'] = weights
+    weights_df.at['2016-09-13','Weights'] = weights
+
+    for date in all_assets_df.drop(['2016-09-11', '2016-09-12', '2016-09-13'], axis=0).index:
+        date_index = all_assets_df.index.get_loc(date)
+        start_index = max(0, date_index - 5)
+        period_df = all_assets_df.iloc[start_index:date_index]
+        period_returns = period_df.pct_change().dropna()
+
+        if period_returns.empty:
+            print(f"Skipping date {date} due to insufficient data.")
+            continue
+
+        m = period_returns.mean()
+        Q = period_returns.cov()
+
+        # print(f"Mean returns (m) for {date}: {m}")
+        # print(f"Covariance matrix (Q) for {date}: {Q}")
+
+        #initial_guess = weights_df.iloc[date_index - 1]['Weights']
+        #x0 = np.array([initial_guess['BTC'], initial_guess['GOLD']])
+        x0 = np.array([0.97,0.03])
+
+
+        weights = optimize_scipy(Q, m, x0)
+        weights_df.at[date,'Weights'] = {'BTC': weights[0], 'GOLD': weights[1]}
+
+    print(weights_df)
+
 
     # Initialize simulator
     # simulator = Simulator(initial_capital=1000, commission_fees=commission_fees)
 
     # Run simulation
     # trade_history, portfolio_values = simulator.simulate_trades(data_dict, signals_dict)
-    portfolio_values = simulate_trades(all_assets_df, weights, commission_fees, signals_df, principal=1000)
+    portfolio_values = simulate_trades(all_assets_df, weights_df, commission_fees, signals_df, principal=1000)
 
     # Print trade history
     #print("\nTrade History:")
