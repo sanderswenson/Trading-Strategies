@@ -1,63 +1,23 @@
-#Market trading bot with a built in simulator.
-
-## Project Structure
-The project will be organized as follows:
-- `src/`: Main source code
-  - `strategies/`: Trading strategy modules
-  - `indicators/`: Technical indicator modules
-  - `data/`: Data handling and processing
-  - `simulation/`: Backtesting and simulation engine
-  - `gui/`: Graphical user interface
-- `tests/`: Unit and integration tests
-- `docs/`: Documentation files
-- `config/`: Configuration files
-
-## MVP
-
-Python
-
-Modular
-
-Multiple assets
-
-Multiple indicators
-
-Multiple strategies
-
-Simulator
-
-Historical data
-
-Performance evaluation via account balance (cash + value of assets)
-
-
-
-
-
-## Ideas
-
-It will be written in Python.
-
-It will handle multiple assets and able to compare multiple assets against each other.
-
-Using a variety of indicators and trading strategies, each contained in their own modules.
-
-It will be able to run simulations of past data. 
-
-It will utilize multiple methods to evaluate strategy performance, including:
-    Account balance (cash + value of assets)
-    Position (long, short, flat)
-    Profit/Loss per trade
-    Maximum Drawdown
-    Sharpe Ratio
-
-It will have a cohesive API between modules.
-    API will be tracked in an API.md file.
-
-It will be designed to be easily extensible and modular.
-
-It will have multiple modes of output with relevant trading signals and figures.
-    Y/N prompts will offer generating a CSV file of the data, with a prompt to name the file after.
-    Y/N prompts will offer generating a .png file of the figures after.
-    Rudementary data will be outputted to the console after each run.
-
+Market Trading Bot with Built-In Simulator
+Introduction
+Have you ever wondered how traders make decisions about buying or selling assets like Bitcoin or gold? The financial markets can be complex and dynamic, influenced by countless factors that are often hard to predict. To navigate this complexity, traders use various strategies and tools to analyze market data and make informed decisions.
+This project aims to develop a market trading bot with an integrated simulation engine. In simpler terms, it's a software application that can:
+Analyze historical market data for multiple assets.
+Apply different trading strategies to decide when to buy or sell.
+Simulate trades to see how those strategies would have performed in the past.
+Evaluate performance using key financial metrics.
+Note: This is an early-stage project and is currently unpolished. It's a work in progress, and many features are either incomplete or in development.
+---
+Project Overview
+Features
+Multiple Assets Support: Ability to handle and compare multiple assets simultaneously (e.g., Bitcoin, gold).
+Modular Design: Components like strategies and indicators are modular, allowing for easy extension and customization.
+Trading Strategies: Implementation of various trading strategies, each encapsulated in its own module.
+Simulation Engine: Run backtests on historical data to simulate trading performance.
+Performance Evaluation: Assess strategies using metrics like account balance, profit/loss per trade, maximum drawdown, and Sharpe Ratio.
+Extensible API: A cohesive API between modules to facilitate integration and scalability.
+What's Being Worked On
+Portfolio Weight-Based Trading: Transitioning from raw buy/sell signals to strategies that trade based on target portfolio weights.
+Rebalancing Logic: Implementing functions to rebalance the portfolio according to target weights while considering transaction costs.
+Risk Management: Incorporating risk metrics and constraints into the trading strategies.
+Enhanced Performance Metrics: Developing tools to evaluate the strategies more comprehensively.
